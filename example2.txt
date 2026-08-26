@@ -1,0 +1,25 @@
+graph TD
+    subgraph User Actions
+        A([Customer]) -->|Visits Site| B(Search Products)
+        B --> C{Found Item?}
+        C -->|Yes| D[Add to Cart]
+        C -->|No| B
+        D --> E[Checkout]
+    end
+
+    subgraph Backend System
+        E --> F{Validate Payment}
+        F -->|Success| G[(Database Update)]
+        F -->|Failed| H[Payment Error]
+        H -.->|Retry| E
+    end
+
+    subgraph Fulfillment Processing
+        G --> I[Warehouse Notified]
+        I --> J{In Stock?}
+        J -->|Yes| K[Pack Order]
+        J -->|No| L[Backorder Alert]
+        L --> M[Notify Customer]
+        K --> N[Ship to Customer]
+        N ===> O((Delivered))
+    end

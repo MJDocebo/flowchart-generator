@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Mermaid Generator</title>
+    
+    <!-- Google Fonts: Special Gothic Expanded One & Figtree -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Special+Gothic+Expanded+One&display=swap" rel="stylesheet">
+    
+    <!-- jsPDF for PDF generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <!-- CodeMirror for Syntax Highlighting -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/theme/darcula.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/mode/simple.min.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Figtree:wght@400;600;700&display=swap');
+
+        body {
+            display: flex;
+            flex-direction: column;
+            margin: 0;
+            height: 100vh;
+            font-family: 'Figtree', sans-serif;
+            background-color: #E6DACB; /* Stone */
+            color: #2A2923; /* Black */
+        }
+
+        /* Top Application Header */
+        #app-header {
+            background-color: #06065D; /* Navy Blue */
+            color: #FFFFFF; /* White */
+            padding: 15px 20px;
+            font-size: 24px;
+            font-weight: 700;
+            font-family: 'Special Gothic Expanded One', 'Figtree', sans-serif;
+        }
+        
+        #workspace {
+            display: flex;
+            flex: 1;
+            min-height: 0;
+        }
+
+        #editor-container {
+            width: 40%; 
+            min-width: 200px;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #resizer {
+            width: 6px;
+            background-color: #06065D; /* Navy Blue */
+            cursor: col-resize;
+            transition: background-color 0.2s;
+            z-index: 10;
+        }
+
+        #resizer:hover, #resizer.active {
+            background-color: #FF5DD8; /* Hot Pink */
+        }
+        
+        body.resizing {
+            cursor: col-resize;
+            user-select: none;
+        }
+
+        .CodeMirror {
+            flex: 1;
+            height: auto;
+            font-family: 'Google Sans Code', monospace;
+            font-size: 16px;
+        }
+
+        #preview-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: #FFFFFF; /* White */
+            color: #2A2923; /* Black */
+            min-width: 200px; 
+        }
+
+        #output {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            overflow: auto;
+        }
+
+        /* Panel Headers */
+        .header {
+            padding: 10px 20px;
+            background-color: #7E2EE9; /* Violet */
+            font-weight: 700;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #FFFFFF; /* White */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        /* Updated Live Preview Header Color */
+        #preview-container .header {
+            background-color: #E6DABC; /* Custom Stone variant */
+            color: #06065D; /* Navy Blue */
+        }
+
+        /* Download Buttons */
+        .actions button {
+            font-family: 'Figtree', sans-serif;
+            background-color: #B627C6; /* Magenta */
+            color: #FFFFFF; /* White */
+            border: none;
+            padding: 6px 12px;
+            margin-left: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: none; /* explicitly override uppercase */
+            transition: background-color 0.2s, color 0.2s;
+            display: inline-block;
+        }
+
+        .actions button:hover {
+            background-color: #06065D; /* Navy Blue */
+            color: #FFFFFF; /* White */
+        }
+
+        /* Import File Button */
+        .actions.editor-actions label {
+            font-family: 'Figtree', sans-serif;
+            background-color: #DCB7FF; /* Lavender */
+            color: #2A2923; /* Black */
+            border: none;
+            padding: 6px 12px;
+            margin-left: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-transform: none; /* explicitly override uppercase */
+            transition: background-color 0.2s, color 0.2s;
+            display: inline-block;
+        }
+
+        .actions.editor-actions label:hover {
+            background-color: #06065D; /* Navy Blue */
+            color: #FFFFFF; /* White */
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-header">Simple Flowchart Generator</div>
+
+    <div id="workspace">
+        <div id="editor-container">
+            <div class="header">
+                <span>Mermaid Code</span>
+                <div class="actions editor-actions">
+                    <input type="file" id="file-input" accept=".txt,.mmd,.md" style="display: none;" onchange="handleFileUpload(event)">
+                    <label for="file-input">Import File</label>
+                </div>
+            </div>
+            <textarea id="code">graph TD
+    A[Start] --> B{Is it working?}
+    B -->|Yes| C[Great!]
+    B -->|No| D[Fix it]
+    D --> B</textarea>
+        </div>
+
+        <div id="resizer"></div>
+
+        <div id="preview-container">
+            <div class="header">
+                <span>Live Preview</span>
+                <div class="actions">
+                    <button onclick="downloadPNG()">Download PNG</button>
+                    <button onclick="downloadPDF()">Download PDF</button>
+                </div>
+            </div>
+            <div id="output"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+
+        mermaid.initialize({ 
+            startOnLoad: false,
+            theme: 'default',
+            flowchart: { htmlLabels: false } 
+        });
+
+        CodeMirror.defineSimpleMode("mermaid", {
+            start: [
+                {regex: /%%.*/, token: "comment"},
+                {regex: /(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|gantt|pie|journey|subgraph|end)\b/, token: "keyword"},
+                {regex: /-->|---|-.->|==>|-->>|<--/, token: "operator"},
+                {regex: /\|.*?\|/, token: "string"},
+                {regex: /\[.*?\]|\{.*?\}|\(.*?\)/, token: "variable-2"}
+            ]
+        });
+
+        const codeInput = document.getElementById('code');
+        const editor = CodeMirror.fromTextArea(codeInput, {
+            mode: "mermaid",
+            theme: "darcula",
+            lineNumbers: true,
+            lineWrapping: true
+        });
+
+        const outputDiv = document.getElementById('output');
+
+        async function renderDiagram() {
+            const code = editor.getValue().replace(/\u00A0/g, ' ').trim();
+            
+            if (!code) {
+                outputDiv.innerHTML = '';
+                return;
+            }
+
+            try {
+                const { svg } = await mermaid.render('graph-preview', code);
+                outputDiv.innerHTML = svg;
+            } catch (error) {
+                console.log("Waiting for valid Mermaid syntax...");
+            }
+        }
+
+        editor.on('change', renderDiagram);
+        setTimeout(renderDiagram, 100);
+        window.editor = editor;
+    </script>
+
+    <script>
+        const resizer = document.getElementById('resizer');
+        const editorContainer = document.getElementById('editor-container');
+        let isResizing = false;
+
+        resizer.addEventListener('mousedown', (e) => {
+            isResizing = true;
+            document.body.classList.add('resizing');
+            resizer.classList.add('active');
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!isResizing) return;
+            let newWidth = e.clientX;
+            if (newWidth < 200) newWidth = 200;
+            if (newWidth > window.innerWidth - 200) newWidth = window.innerWidth - 200;
+            editorContainer.style.width = `${newWidth}px`;
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isResizing) {
+                isResizing = false;
+                document.body.classList.remove('resizing');
+                resizer.classList.remove('active');
+            }
+        });
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                window.editor.setValue(e.target.result);
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        const SCALE = 3; 
+        const PADDING = 20;
+
+        function getSvgCanvas() {
+            return new Promise((resolve) => {
+                const svg = document.querySelector('#output svg');
+                if (!svg) return resolve(null);
+
+                const clonedSvg = svg.cloneNode(true);
+                const bbox = svg.getBoundingClientRect();
+                
+                const scaledWidth = bbox.width * SCALE;
+                const scaledHeight = bbox.height * SCALE;
+
+                clonedSvg.setAttribute('width', scaledWidth);
+                clonedSvg.setAttribute('height', scaledHeight);
+                clonedSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                clonedSvg.removeAttribute('style');
+
+                const serializer = new XMLSerializer();
+                let svgString = serializer.serializeToString(clonedSvg);
+                svgString = svgString.replace(/<br>/g, '<br/>');
+
+                const img = new Image();
+                
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = scaledWidth + (PADDING * 2 * SCALE);
+                    canvas.height = scaledHeight + (PADDING * 2 * SCALE);
+                    const ctx = canvas.getContext('2d');
+                    
+                    ctx.fillStyle = 'white';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, PADDING * SCALE, PADDING * SCALE);
+                    resolve(canvas);
+                };
+
+                img.onerror = function(err) {
+                    console.error("Failed to render SVG to Image", err);
+                    alert("Failed to generate image.");
+                    resolve(null);
+                };
+                
+                img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgString);
+            });
+        }
+
+        async function downloadPNG() {
+            const canvas = await getSvgCanvas();
+            if (!canvas) return;
+            const link = document.createElement('a');
+            link.download = 'mermaid-diagram.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        async function downloadPDF() {
+            const canvas = await getSvgCanvas();
+            if (!canvas) return;
+
+            const imgData = canvas.toDataURL('image/jpeg', 0.8); 
+            const { jsPDF } = window.jspdf;
+            
+            const pdfWidth = canvas.width / SCALE;
+            const pdfHeight = canvas.height / SCALE;
+            const orientation = pdfWidth > pdfHeight ? 'landscape' : 'portrait';
+            
+            const doc = new jsPDF({
+                orientation: orientation,
+                unit: 'px',
+                format: [pdfWidth, pdfHeight]
+            });
+            
+            doc.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+            doc.save('mermaid-diagram.pdf');
+        }
+    </script>
+</body>
+</html>

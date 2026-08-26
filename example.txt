@@ -1,0 +1,9 @@
+graph TD
+    A([Wake Up]) --> B{Coffee ready?}
+    B -->|Yes| C[Pour a cup]
+    B -->|No| D[Brew coffee]
+    D --> C
+    C --> E[Drink coffee]
+    E --> F{Still tired?}
+    F -->|Yes| D
+    F -->|No| G([Start the day])
